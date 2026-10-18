@@ -29,7 +29,8 @@ install_sdkman() {
             sdk install java "$target_version"
             sdk default java "$target_version"
 
-            local current_ver=$(java -version 2>&1 | awk -F '"' '/version/ {print $2}')
+            local current_ver
+    current_ver=$(java -version 2>&1 | awk -F '"' '/version/ {print $2}')
             add_report_entry "Java (SDKMAN)" "${current_ver:-Unknown}" "$target_version" "sdk update && sdk upgrade java"
         fi
     elif [[ "$DRY_RUN" == "true" ]]; then

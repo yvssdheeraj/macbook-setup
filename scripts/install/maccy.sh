@@ -23,7 +23,8 @@ install_maccy() {
     fi
 
     if [[ "$DRY_RUN" != "true" ]]; then
-        local version=$(defaults read "$app_dir/Maccy.app/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null || echo "Unknown")
+        local version
+    version=$(defaults read "$app_dir/Maccy.app/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null || echo "Unknown")
         add_report_entry "Maccy" "$version" "Latest" "In-app updater"
     else
         add_report_entry "Maccy" "N/A" "Latest" "In-app updater"

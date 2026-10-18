@@ -31,7 +31,8 @@ install_intellij() {
 
         if [[ "$DRY_RUN" != "true" ]]; then
             # Attach DMG silently
-            local mount_point=$(hdiutil attach -nobrowse -readonly /tmp/intellij.dmg | grep /Volumes | awk '{print $3}' | head -n 1)
+            local mount_point
+    mount_point=$(hdiutil attach -nobrowse -readonly /tmp/intellij.dmg | grep /Volumes | awk '{print $3}' | head -n 1)
             if [[ -n "$mount_point" && -d "$mount_point/$app_name" ]]; then
                 cp -a "$mount_point/$app_name" "$app_dir/"
                 hdiutil detach "$mount_point" -force
@@ -47,7 +48,8 @@ install_intellij() {
     fi
 
     if [[ "$DRY_RUN" != "true" ]]; then
-        local version=$(defaults read "$app_dir/$app_name/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null || echo "Unknown")
+        local version
+    version=$(defaults read "$app_dir/$app_name/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null || echo "Unknown")
         add_report_entry "IntelliJ IDEA" "$version" "2023.3.3" "In-app updater"
     else
         add_report_entry "IntelliJ IDEA" "N/A" "2023.3.3" "In-app updater"

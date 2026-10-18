@@ -14,7 +14,8 @@ install_chrome() {
     else
         execute_cmd "curl -L -o /tmp/chrome.dmg https://dl.google.com/chrome/mac/universal/stable/GGRO/googlechrome.dmg"
         if [[ "$DRY_RUN" != "true" ]]; then
-            local mount_point=$(hdiutil attach -nobrowse -readonly /tmp/chrome.dmg | grep /Volumes | awk '{print $3$4$5}' | head -n 1)
+            local mount_point
+    mount_point=$(hdiutil attach -nobrowse -readonly /tmp/chrome.dmg | grep /Volumes | awk '{print $3$4$5}' | head -n 1)
             # Sometimes volume name has spaces. Safer string manipulation:
             mount_point=$(hdiutil info | grep /Volumes/Google | awk -F'\t' '{print $3}')
 
@@ -42,7 +43,8 @@ install_duckduckgo() {
     else
         execute_cmd "curl -L -o /tmp/ddg.dmg https://staticcdn.duckduckgo.com/mac-desktop-browser/duckduckgo.dmg"
         if [[ "$DRY_RUN" != "true" ]]; then
-            local mount_point=$(hdiutil info | grep /Volumes/DuckDuckGo | awk -F'\t' '{print $3}')
+            local mount_point
+    mount_point=$(hdiutil info | grep /Volumes/DuckDuckGo | awk -F'\t' '{print $3}')
             if [[ -z "$mount_point" ]]; then
                 hdiutil attach -nobrowse -readonly /tmp/ddg.dmg
                 mount_point=$(hdiutil info | grep /Volumes/DuckDuckGo | awk -F'\t' '{print $3}')

@@ -14,7 +14,7 @@ source "$SCRIPT_DIR/utils/logging.sh"
 source "$SCRIPT_DIR/utils/backup.sh"
 
 # Global state / Options
-export DRY_RUN=false
+export DRY_RUN="${DRY_RUN:-false}"
 
 # Helper for executing commands considering DRY_RUN
 execute_cmd() {

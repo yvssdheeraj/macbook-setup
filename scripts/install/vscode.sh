@@ -27,7 +27,8 @@ install_vscode() {
     execute_cmd "ln -sf \"$app_dir/Visual Studio Code.app/Contents/Resources/app/bin/code\" \"$bin_dir/code\""
 
     if [[ "$DRY_RUN" != "true" ]]; then
-        local version=$(defaults read "$app_dir/Visual Studio Code.app/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null || echo "Unknown")
+        local version
+    version=$(defaults read "$app_dir/Visual Studio Code.app/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null || echo "Unknown")
         add_report_entry "VS Code" "$version" "Latest" "In-app updater"
     else
         add_report_entry "VS Code" "N/A" "Latest" "In-app updater"

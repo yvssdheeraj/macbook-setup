@@ -14,7 +14,8 @@ install_dbeaver() {
     else
         execute_cmd "curl -L -o /tmp/dbeaver.dmg https://dbeaver.io/files/dbeaver-ce-latest-macos-aarch64.dmg"
         if [[ "$DRY_RUN" != "true" ]]; then
-            local mount_point=$(hdiutil info | grep /Volumes/DBeaver | awk -F'\t' '{print $3}')
+            local mount_point
+    mount_point=$(hdiutil info | grep /Volumes/DBeaver | awk -F'\t' '{print $3}')
             if [[ -z "$mount_point" ]]; then
                 hdiutil attach -nobrowse -readonly /tmp/dbeaver.dmg
                 mount_point=$(hdiutil info | grep /Volumes/DBeaver | awk -F'\t' '{print $3}')

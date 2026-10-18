@@ -51,7 +51,8 @@ install_aws_cli() {
     if [[ "$DRY_RUN" != "true" ]]; then
         local aws_cmd="aws"
         [[ -f "$HOME/.cargo/bin/aws" ]] && aws_cmd="$HOME/.cargo/bin/aws"
-        local version=$($aws_cmd --version 2>&1 | awk '{print $1}' | cut -d/ -f2 || echo "Unknown")
+        local version
+    version=$($aws_cmd --version 2>&1 | awk '{print $1}' | cut -d/ -f2 || echo "Unknown")
         add_report_entry "AWS CLI" "$version" "Latest" "uv tool upgrade awscli"
     else
         add_report_entry "AWS CLI" "N/A" "Latest" "uv tool upgrade awscli"

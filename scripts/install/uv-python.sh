@@ -22,7 +22,8 @@ install_uv() {
         execute_cmd "uv python install \"$target_version\""
 
         if [[ "$DRY_RUN" != "true" ]]; then
-            local current_ver=$(uv python list 2>/dev/null | grep "$target_version" | head -n 1 | awk '{print $2}' || echo "Unknown")
+            local current_ver
+    current_ver=$(uv python list 2>/dev/null | grep "$target_version" | head -n 1 | awk '{print $2}' || echo "Unknown")
             add_report_entry "Python (uv)" "$current_ver" "$target_version" "uv self update && uv python install <version>"
         fi
     fi

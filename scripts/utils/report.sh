@@ -12,11 +12,11 @@ init_report() {
     fi
 
     mkdir -p "$HOME/Desktop"
-    echo "# macOS Setup Report" > "$REPORT_FILE"
-    echo "Generated on: $(date)" >> "$REPORT_FILE"
-    echo "" >> "$REPORT_FILE"
-    echo "| Application | Installed Version | Latest Version | Update Command |" >> "$REPORT_FILE"
-    echo "| :--- | :--- | :--- | :--- |" >> "$REPORT_FILE"
+    { echo "# macOS Setup Report";
+    echo "Generated on: $(date)"
+    echo ""
+    echo "| Application | Installed Version | Latest Version | Update Command |"
+    echo "| :--- | :--- | :--- | :--- |"; } > "$REPORT_FILE"
 }
 
 add_report_entry() {

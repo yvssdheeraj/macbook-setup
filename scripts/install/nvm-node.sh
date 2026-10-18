@@ -25,7 +25,8 @@ install_nvm() {
         execute_cmd "nvm alias default \"$target_version\""
 
         if [[ "$DRY_RUN" != "true" ]]; then
-            local current_ver=$(node -v 2>/dev/null || echo "Unknown")
+            local current_ver
+    current_ver=$(node -v 2>/dev/null || echo "Unknown")
             add_report_entry "Node.js (NVM)" "$current_ver" "$target_version" "nvm install <version>"
         fi
     elif [[ "$DRY_RUN" == "true" ]]; then

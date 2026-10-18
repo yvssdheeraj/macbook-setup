@@ -1,0 +1,32 @@
+name: macOS Compatibility Tests
+
+on:
+  schedule:
+    - cron: '0 0 * * 0' # Run weekly
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'scripts/customize/**'
+      - 'setup.sh'
+
+permissions:
+  contents: read
+
+jobs:
+  macos-dry-run:
+    name: Dry-Run on macOS Runner
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run setup in dry-run mode
+        run: ./setup.sh --dry-run
+
+  macos-validate:
+    name: Validate Environment Logic
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run preflight checks directly
+        run: source scripts/common.sh && source scripts/preflight.sh && preflight_checks

@@ -1,0 +1,14 @@
+# Ghostty Configuration
+
+background = #101010
+foreground = #eeeeee
+font-family = Menlo
+font-size = 14
+window-padding-x = 10
+window-padding-y = 10
+cursor-style = block
+macos-titlebar-style = hidden
+theme = Ultra Dark
+background-opacity = 0.9
+macos-window-buttons = visible
+window-decoration = auto

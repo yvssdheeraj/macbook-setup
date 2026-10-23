@@ -1,0 +1,31 @@
+#!/usr/bin/env zsh
+# shellcheck shell=bash
+# shellcheck disable=SC2034
+
+export PATH="$MACBOOK_LOCAL_BIN:$MACBOOK_DATA_DIR/python-bin:$MACBOOK_BREW_PREFIX/bin:$MACBOOK_BREW_PREFIX/sbin:$HOME/.cargo/bin:$PATH"
+
+export ZSH="$MACBOOK_ZSH"
+if [[ -s "$ZSH/oh-my-zsh.sh" ]] && ! type omz >/dev/null 2>&1; then
+    ZSH_THEME="${ZSH_THEME:-robbyrussell}"
+    if [[ -z "${plugins+x}" ]]; then plugins=(git docker); fi
+    source "$ZSH/oh-my-zsh.sh"
+fi
+
+export NVM_DIR="$MACBOOK_NVM_DIR"
+if [[ -s "$NVM_DIR/nvm.sh" ]]; then source "$NVM_DIR/nvm.sh"; fi
+export SDKMAN_DIR="$MACBOOK_SDKMAN_DIR"
+if [[ -s "$SDKMAN_DIR/bin/sdkman-init.sh" ]]; then source "$SDKMAN_DIR/bin/sdkman-init.sh"; fi
+export UV_PYTHON_INSTALL_DIR="$MACBOOK_DATA_DIR/python"
+export UV_PYTHON_BIN_DIR="$MACBOOK_DATA_DIR/python-bin"
+export UV_NO_MODIFY_PATH=1
+
+if [[ -f "$HOME/.user_env" ]]; then source "$HOME/.user_env"; fi
+
+if [[ -s "$MACBOOK_DATA_DIR/zsh-plugins/zsh-autosuggestions/zsh-autosuggestions.zsh" ]] &&
+    ! typeset -f _zsh_autosuggest_start >/dev/null; then
+    source "$MACBOOK_DATA_DIR/zsh-plugins/zsh-autosuggestions/zsh-autosuggestions.zsh"
+fi
+if [[ -s "$MACBOOK_DATA_DIR/zsh-plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]] &&
+    ! typeset -f _zsh_highlight >/dev/null; then
+    source "$MACBOOK_DATA_DIR/zsh-plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+fi

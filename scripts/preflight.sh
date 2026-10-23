@@ -1,39 +1,32 @@
 #!/usr/bin/env bash
-# scripts/preflight.sh
 
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
 preflight_checks() {
-    log_info "Running preflight checks..."
-
-    # Check OS
-    if [[ "$(uname -s)" != "Darwin" ]]; then
-        # For CI/CD purposes, we might allow bypassing this via an env var
-        if [[ -z "$CI_BYPASS_OS_CHECK" ]]; then
-             fatal "This setup is intended for macOS only."
+    local os architecture tool version
+    os="$(uname -s)"
+    architecture="$(uname -m)"
+    if [[ "$os" != Darwin || "$architecture" != arm64 ]]; then
+        if [[ "$DRY_RUN" == true && "${CI_BYPASS_OS_CHECK:-}" == 1 ]]; then
+            log_warn "Read-only CI plan: bypassing macOS/ARM64 checks."
         else
-             log_warn "Bypassing OS check due to CI_BYPASS_OS_CHECK."
+            fatal "This setup requires macOS on Apple Silicon (ARM64). OS bypass is allowed only for a dry-run."
         fi
     fi
-
-    # Check Architecture
-    if [[ "$(uname -m)" != "arm64" ]]; then
-        if [[ -z "$CI_BYPASS_OS_CHECK" ]]; then
-            fatal "This setup is intended for Apple Silicon (ARM64) only."
-        else
-            log_warn "Bypassing Architecture check due to CI_BYPASS_OS_CHECK."
+    [[ "$EUID" -ne 0 ]] || fatal "Do not run setup as root."
+    [[ -d "$HOME" && -w "$HOME" && "$HOME" != / ]] || fatal "HOME must be an existing writable user home."
+    for tool in ruby curl shasum tar unzip git; do
+        command -v "$tool" >/dev/null || fatal "Missing prerequisite: $tool. Provision it separately without elevation."
+    done
+    if [[ "$os" == Darwin ]]; then
+        version="$(sw_vers -productVersion)"
+        [[ "${version%%.*}" -ge 13 ]] || fatal "macOS 13 or newer is required."
+        if [[ "$DRY_RUN" != true ]]; then
+            if [[ "$(command -v git)" == /usr/bin/git ]] && ! xcode-select -p >/dev/null 2>&1; then
+                fatal "Apple Git is an installer stub until developer tools are provisioned. Setup will not request administrator access."
+            fi
+            git --version >/dev/null || fatal "Git is not usable."
         fi
     fi
-
-    # Check for Sudo / Root
-    if [[ "$EUID" -eq 0 ]]; then
-        fatal "Please do not run this script as root or with sudo."
-    fi
-
-    # Check for User Home Directory writable
-    if [[ ! -w "$HOME" ]]; then
-        fatal "User home directory ($HOME) is not writable."
-    fi
-
-    log_success "Preflight checks passed."
+    log_success "Preflight passed. Installation is restricted to the current user's home."
 }

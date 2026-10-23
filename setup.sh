@@ -1,137 +1,115 @@
 #!/usr/bin/env bash
-# setup.sh
+set -euo pipefail
 
-set -e
-
-# Change to the directory of the script
 cd "$(dirname "${BASH_SOURCE[0]}")"
-export REPO_ROOT="$(pwd)"
-
-source "scripts/common.sh"
-source "scripts/preflight.sh"
-source "scripts/utils/report.sh"
+export REPO_ROOT="$PWD"
+source "$REPO_ROOT/scripts/common.sh"
+source "$REPO_ROOT/scripts/components.sh"
+source "$REPO_ROOT/scripts/preflight.sh"
 
 usage() {
-    cat << EOF
-Usage: ./setup.sh [OPTIONS]
+    cat <<'EOF'
+Usage: ./setup.sh [--dry-run] [--update | --validate] [--only LIST] [--skip LIST]
+                  [--config FILE] [--list] [--help]
 
-Options:
-  --dry-run                 Simulate the setup process without making system changes.
-  --only <list>             Comma-separated list of components to install (e.g., git,node,python).
-  --skip <list>             Comma-separated list of components to skip.
-  --validate                Run validation checks on the setup.
-  --help                    Show this help message.
-
-Example:
-  ./setup.sh --dry-run
-  ./setup.sh --only git,docker
-  ./setup.sh --skip macos-customization
+Setup installs missing tools without upgrading existing installations.
+--update upgrades only repo-owned installations, tracking stable/LTS channels.
+--validate probes selected components without setup writes; tools may update caches.
+--dry-run prints a read-only plan; it performs no downloads or installations.
+LIST is comma-separated. Dependencies are included; explicit skip conflicts fail.
+Desktop preferences are opt-in: appearance, trackpad, wallpaper, dock.
+Aliases: browsers, cli-tools, macos-customization.
 EOF
-    exit 0
 }
 
-# Parse Arguments
 ONLY=""
 SKIP=""
-
+CONFIG_FILE="$REPO_ROOT/config/user.env"
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --dry-run)
-            export DRY_RUN=true
-            shift
-            ;;
-        --only)
-            ONLY="$2"
-            shift 2
-            ;;
-        --skip)
-            SKIP="$2"
-            shift 2
-            ;;
-        --validate)
-            bash scripts/validate.sh
-            exit 0
-            ;;
-        --help)
-            usage
-            ;;
-        *)
-            log_error "Unknown option: $1"
-            usage
-            ;;
+        --dry-run) DRY_RUN=true; shift ;;
+        --update|--validate)
+            [[ "$MODE" == install ]] || fatal "--update and --validate are mutually exclusive."
+            MODE="${1#--}"; shift ;;
+        --only|--skip|--config)
+            [[ $# -ge 2 && -n "$2" && "$2" != --* ]] || fatal "$1 requires a value."
+            case "$1" in
+                --only) ONLY="$2" ;;
+                --skip) SKIP="$2" ;;
+                --config) CONFIG_FILE="$2" ;;
+            esac
+            shift 2 ;;
+        --list) printf '%s\n' "$COMPONENTS"; exit 0 ;;
+        --help|-h) usage; exit 0 ;;
+        *) log_error "Unknown option: $1"; usage >&2; exit 2 ;;
     esac
 done
-
-if [[ "$DRY_RUN" == "true" ]]; then
-    log_info "========== DRY RUN MODE ENABLED =========="
-fi
-
-# 1. Preflight
+export DRY_RUN MODE
+load_configuration "$CONFIG_FILE"
+select_components "$ONLY" "$SKIP"
 preflight_checks
 
-# 2. Load Configuration
-if [[ -f "$REPO_ROOT/config/user.env" ]]; then
-    log_info "Loading configuration from config/user.env..."
-    set -a
-    source "$REPO_ROOT/config/user.env"
-    set +a
+printf 'Mode: %s%s\nComponents: %s\n' "$MODE" "$([[ "$DRY_RUN" == true ]] && printf ' (dry-run)' || true)" "$SELECTED"
+printf 'Homebrew: %s (custom home prefix; reduced bottle compatibility)\nApplications: %s\n' "$BREW_PREFIX" "$APP_DIR"
+if [[ "$DRY_RUN" == true ]]; then
+    for component in $SELECTED; do
+        printf '[DRY-RUN] %s %s; verify actual state; preserve pre-existing resources\n' "$MODE" "$component"
+    done
+    exit 0
+fi
+
+if [[ "$MODE" != validate ]]; then
+    initialize_run
+fi
+
+failed=""
+result=0
+for component in $SELECTED; do
+    dependency_failed=false
+    for dependency in $(component_dependencies "$component"); do
+        case " $failed " in *" $dependency "*) dependency_failed=true ;; esac
+    done
+    if [[ "$dependency_failed" == true ]]; then
+        log_error "BLOCKED: $component has a failed dependency."
+        failed="$failed $component"
+        result=1
+        if [[ "$MODE" != validate ]]; then
+            support report "$component" blocked "A required dependency failed."
+        fi
+        continue
+    fi
+    export CURRENT_COMPONENT="$component"
+    log_info "$MODE: $component"
+    status=0
+    if [[ "$MODE" == validate ]]; then
+        bash "$REPO_ROOT/scripts/validate.sh" "$component" || status=$?
+    else
+        log_file="$STATE_DIR/reports/$(basename "$REPORT_FILE" .md)-$component.log"
+        bash "$REPO_ROOT/scripts/$(component_script "$component")" 2>&1 | tee "$log_file" || status=$?
+    fi
+    if [[ "$status" -eq 0 ]]; then
+        if [[ "$MODE" != validate ]]; then
+            outcome=unchanged
+            [[ ! -f "$RUN_DIR/changed.$component" ]] || outcome=changed
+            support report "$component" "$outcome" "Verified."
+        fi
+    else
+        failed="$failed $component"
+        result=1
+        outcome=failed
+        [[ "$status" -ne 78 ]] || outcome=blocked
+        log_error "$component: $outcome (exit $status)."
+        if [[ "$MODE" != validate ]]; then
+            support report "$component" "$outcome" "Exit $status; see $(basename "$log_file")."
+        fi
+    fi
+done
+if [[ "$MODE" != validate ]]; then
+    log_info "Report: $REPORT_FILE"
+fi
+if [[ "$result" -ne 0 ]]; then
+    log_error "Setup is incomplete. Failed or blocked components:$failed"
 else
-    log_warn "config/user.env not found. Using defaults. Please copy config/user.example.env to config/user.env and configure it."
+    log_success "All selected components verified."
 fi
-
-# 3. Init Report
-init_report
-
-# Helper to check if a component should be run
-should_run() {
-    local component="$1"
-
-    if [[ -n "$ONLY" ]]; then
-        if [[ ",$ONLY," != *",$component,"* ]]; then
-            return 1
-        fi
-    fi
-
-    if [[ -n "$SKIP" ]]; then
-        if [[ ",$SKIP," == *",$component,"* ]]; then
-            return 1
-        fi
-    fi
-
-    return 0
-}
-
-# 4. Installations
-log_info "Starting installations..."
-
-if should_run "git"; then bash scripts/install/git.sh; fi
-if should_run "node"; then bash scripts/install/nvm-node.sh; fi
-if should_run "python"; then bash scripts/install/uv-python.sh; fi
-if should_run "java"; then bash scripts/install/sdkman-java.sh; fi
-if should_run "docker"; then bash scripts/install/docker-colima.sh; fi
-if should_run "maccy"; then bash scripts/install/maccy.sh; fi
-if should_run "vscode"; then bash scripts/install/vscode.sh; fi
-if should_run "cli-tools"; then bash scripts/install/cli-tools.sh; fi
-if should_run "intellij"; then bash scripts/install/intellij.sh; fi
-if should_run "browsers"; then bash scripts/install/browsers.sh; fi
-if should_run "ghostty"; then bash scripts/install/ghostty.sh; fi
-if should_run "oh-my-zsh"; then bash scripts/install/oh-my-zsh.sh; fi
-if should_run "gradle"; then bash scripts/install/gradle.sh; fi
-if should_run "dbeaver"; then bash scripts/install/dbeaver.sh; fi
-if should_run "btop"; then bash scripts/install/btop.sh; fi
-
-# 5. MacOS Customization
-if should_run "macos-customization"; then
-    log_info "Starting macOS customizations..."
-    bash scripts/customize/trackpad.sh
-    bash scripts/customize/appearance.sh
-    bash scripts/customize/wallpaper.sh
-    bash scripts/customize/dock.sh
-fi
-
-# 6. Dotfiles / Environment
-if should_run "dotfiles"; then
-    bash scripts/customize/dotfiles.sh
-fi
-
-log_success "Setup complete! Please check the Setup_Report.md on your Desktop."
+exit "$result"

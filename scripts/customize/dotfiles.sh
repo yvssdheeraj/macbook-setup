@@ -1,61 +1,22 @@
 #!/usr/bin/env bash
-# scripts/customize/dotfiles.sh
-
+set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/../common.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/../utils/backup.sh"
 
-install_dotfiles() {
-    log_info "Configuring Shell Environment and Dotfiles..."
-
-    local zshrc_target="$HOME/.zshrc"
-    local zshrc_source="$REPO_ROOT/dotfiles/zshrc"
-
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would backup and replace ~/.zshrc"
-        log_info "[DRY-RUN] Would configure Ghostty preferences"
-        return
+{
+    printf 'export MACBOOK_LOCAL_BIN=%q\n' "$LOCAL_BIN"
+    printf 'export MACBOOK_BREW_PREFIX=%q\n' "$BREW_PREFIX"
+    printf 'export MACBOOK_DATA_DIR=%q\n' "$DATA_DIR"
+    printf 'export MACBOOK_NVM_DIR=%q\n' "$NVM_DIR"
+    printf 'export MACBOOK_SDKMAN_DIR=%q\n' "$SDKMAN_DIR"
+    printf 'export MACBOOK_ZSH=%q\n' "$ZSH"
+    if [[ -n "$AWS_DEFAULT_REGION" ]]; then
+        printf 'export AWS_DEFAULT_REGION=%q\n' "$AWS_DEFAULT_REGION"
+        printf 'export AWS_PROFILE=%q\n' "$AWS_PROFILE"
     fi
-
-    # 1. ZSHRC
-    if [[ -f "$zshrc_target" ]]; then
-        # Check if it's already our managed one to avoid endless backups
-        if ! grep -q "# Path configuration" "$zshrc_target" 2>/dev/null; then
-            backup_file "$zshrc_target"
-            cp "$zshrc_source" "$zshrc_target"
-            log_success "Updated ~/.zshrc"
-        else
-            log_info "~/.zshrc is already configured."
-        fi
-    else
-        cp "$zshrc_source" "$zshrc_target"
-        log_success "Created ~/.zshrc"
-    fi
-
-    # 2. AWS Config (Using user.env settings if any)
-    if [[ -n "$AWS_DEFAULT_REGION" || -n "$AWS_PROFILE" ]]; then
-        mkdir -p "$HOME/.aws"
-        local aws_config="$HOME/.aws/config"
-        if [[ ! -f "$aws_config" ]]; then
-            cat << EOF > "$aws_config"
-[default]
-region = ${AWS_DEFAULT_REGION:-us-east-1}
-output = json
-
-[profile ${AWS_PROFILE:-dev}]
-region = ${AWS_DEFAULT_REGION:-us-east-1}
-output = json
-EOF
-            log_success "Created ~/.aws/config"
-        fi
-    fi
-
-    # 3. Ghostty Config
-    local ghostty_dir="$HOME/Library/Application Support/com.mitchellh.ghostty"
-    mkdir -p "$ghostty_dir"
-    if [[ -f "$REPO_ROOT/dotfiles/ghostty_config" ]]; then
-        cp "$REPO_ROOT/dotfiles/ghostty_config" "$ghostty_dir/config"
-        log_success "Configured Ghostty preferences."
-    fi
-}
-
-install_dotfiles
+    cat "$REPO_ROOT/dotfiles/zshrc"
+} | managed_file "$DATA_DIR/shell.zsh"
+printf 'source %q\n' "$DATA_DIR/shell.zsh" | managed_block "$HOME/.zshrc"
+cat "$REPO_ROOT/dotfiles/ghostty_config" |
+    managed_block "$HOME/Library/Application Support/com.mitchellh.ghostty/config"
+zsh -n "$DATA_DIR/shell.zsh"
+log_info "Shell integration installed. Open a new shell to load it."

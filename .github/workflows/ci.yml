@@ -1,53 +1,35 @@
-name: CI Pipeline
+name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main]
   pull_request:
-    branches: [ "main" ]
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-
 jobs:
   lint:
-    name: Lint & Static Analysis
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: make lint
 
-      - name: Run ShellCheck
-        uses: ludeeus/action-shellcheck@master
-        with:
-          scandir: './'
-          ignore_paths: 'tests/bats-*'
-
-      - name: Check Makefile
-        run: make --dry-run test
-
-  test:
-    name: Unit Tests (Linux)
-    runs-on: ubuntu-latest
+  lifecycle:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-15]
+    runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-
-      - name: Run Bats Tests
-        run: make test
-
-  dry-run:
-    name: Dry-Run Safety Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Verify Dry-Run executes without errors
-        run: |
-          export CI_BYPASS_OS_CHECK=1
-          ./setup.sh --dry-run
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: make test
+      - name: Read-only full plan
+        env:
+          CI_BYPASS_OS_CHECK: "1"
+        run: ./setup.sh --dry-run

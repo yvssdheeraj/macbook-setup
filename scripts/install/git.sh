@@ -1,25 +1,22 @@
 #!/usr/bin/env bash
-# scripts/install/git.sh
-
+set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/../common.sh"
 
-install_git_config() {
-    log_info "Configuring Git..."
-
-    if [[ -z "$GIT_USER_NAME" || -z "$GIT_USER_EMAIL" ]]; then
-        log_warn "Git user name or email not set in config/user.env. Skipping full Git config."
-        return
-    fi
-
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY-RUN] Would configure git for $GIT_USER_NAME <$GIT_USER_EMAIL>"
-    else
-        git config --global user.name "$GIT_USER_NAME"
-        git config --global user.email "$GIT_USER_EMAIL"
-        git config --global init.defaultBranch "${GIT_DEFAULT_BRANCH:-main}"
-        git config --global core.editor "${GIT_EDITOR:-nano}"
-        log_success "Git configured."
-    fi
-}
-
-install_git_config
+git --version
+name="$GIT_USER_NAME"
+email="$GIT_USER_EMAIL"
+[[ "$name" != 'Your Name' && "$email" != your.email@example.com ]] || blocked "Replace the example Git identity in config/user.env."
+if [[ -z "$name" ]]; then name="$(git config --global --includes user.name)" || name=""; fi
+if [[ -z "$email" ]]; then email="$(git config --global --includes user.email)" || email=""; fi
+[[ -n "$name" && -n "$email" ]] || blocked "Set GIT_USER_NAME and GIT_USER_EMAIL, or configure an existing Git identity."
+directory="$(work_dir)"
+git config --file "$directory/gitconfig" user.name "$name"
+git config --file "$directory/gitconfig" user.email "$email"
+git config --file "$directory/gitconfig" init.defaultBranch "$GIT_DEFAULT_BRANCH"
+git config --file "$directory/gitconfig" core.editor "$GIT_EDITOR"
+cat "$directory/gitconfig" | managed_file "$DATA_DIR/gitconfig"
+git config --file "$directory/include" include.path "$DATA_DIR/gitconfig"
+cat "$directory/include" | managed_block "$HOME/.gitconfig"
+[[ "$(git config --global --includes user.name)" == "$name" && "$(git config --global --includes user.email)" == "$email" ]] ||
+    blocked "Git identity verification failed."
+record_command_version Git existing git --version

@@ -1,21 +1,7 @@
 #!/usr/bin/env bash
-# scripts/install/oh-my-zsh.sh
-
-source "$(dirname "${BASH_SOURCE[0]}")/../common.sh"
-source "$(dirname "${BASH_SOURCE[0]}")/../utils/report.sh"
-
-install_omz() {
-    log_info "Installing Oh My Zsh..."
-
-    export ZSH="$HOME/.oh-my-zsh"
-
-    if [[ -d "$ZSH" ]]; then
-        log_info "Oh My Zsh is already installed."
-    else
-        execute_cmd "curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh | sh -s -- --unattended"
-    fi
-
-    add_report_entry "Oh My Zsh" "Installed" "Latest" "omz update"
-}
-
-install_omz
+set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/../packages.sh"
+install_git_checkout ohmyzsh/ohmyzsh "$ZSH" master
+[[ -s "$ZSH/oh-my-zsh.sh" ]] || blocked "Oh My Zsh installation is incomplete."
+install_git_checkout zsh-users/zsh-autosuggestions "$DATA_DIR/zsh-plugins/zsh-autosuggestions" master
+install_git_checkout zsh-users/zsh-syntax-highlighting "$DATA_DIR/zsh-plugins/zsh-syntax-highlighting" master

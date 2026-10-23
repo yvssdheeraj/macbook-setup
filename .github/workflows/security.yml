@@ -1,27 +1,17 @@
-name: Security Checks
+name: User-only policy
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main]
   pull_request:
-    branches: [ "main" ]
 
 permissions:
   contents: read
 
 jobs:
-  security-audit:
-    name: Security & Policy Checks
+  policy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Check for sudo/root usage
-        run: |
-          # Allow sudo string in comments or echo/log/fatal messages, but not actual command usage
-          # For a basic check, we'll exclude our known safe use in preflight.sh
-          if grep -rnw scripts setup.sh uninstall.sh --exclude=preflight.sh -e 'sudo '; then
-            echo "::error::Found usage of 'sudo'. Sudo is strictly prohibited in this repository."
-            exit 1
-          fi
-          echo "No sudo usage found."
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Enforce path, privilege, and dry-run boundaries
+        run: make policy
